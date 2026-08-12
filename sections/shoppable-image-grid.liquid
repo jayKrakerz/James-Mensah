@@ -20,6 +20,7 @@
     --shoppable-grid-gap: {{ section.settings.gap }}px;
     --shoppable-grid-heading-size: {{ section.settings.heading_size }}px;
   "
+  data-bonus-variant-id="{{ all_products['dark-winter-jacket'].selected_or_first_available_variant.id }}"
 >
   {% if section.settings.heading != blank %}
     <h2 class="shoppable-grid__heading">{{ section.settings.heading | escape }}</h2>
@@ -797,6 +798,10 @@
       text-align: center;
     }
 
+    .shoppable-grid__items {
+      gap: 8px;
+    }
+
     .shoppable-grid__hotspot {
       top: 50%;
       left: 50%;
@@ -805,7 +810,7 @@
     }
 
     .shoppable-grid__item:nth-child(n) .shoppable-grid__hotspot {
-      top: 50%;
+      top: 25%;
       left: 50%;
     }
 

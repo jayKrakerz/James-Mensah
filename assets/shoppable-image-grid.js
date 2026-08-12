@@ -1,5 +1,5 @@
 import { Component } from '@theme/component';
-import { StandardEvents } from '@shopify/events';
+import { CartLinesUpdateEvent, StandardEvents } from '@shopify/events';
 
 const selectors = {
   trigger: '[data-shoppable-trigger]',
@@ -16,6 +16,9 @@ const selectors = {
   image: '[data-shoppable-image]',
   close: '[data-shoppable-close]',
 };
+
+const bonusColorValue = 'black';
+const bonusSizeValues = ['m', 'medium'];
 
 /** @typedef {{ id: number, available: boolean, options: string[], price: string, image: string | null }} ShoppableVariant */
 
@@ -37,6 +40,8 @@ class ShoppableImageGrid extends Component {
 
   /** @type {ShoppableVariant[] | null} */
   variants = null;
+
+  shouldAddBonusProduct = false;
 
   connectedCallback() {
     super.connectedCallback();
@@ -68,6 +73,7 @@ class ShoppableImageGrid extends Component {
 
     const addButton = event.target.closest('.shoppable-grid__add-button');
     if (addButton instanceof HTMLButtonElement && !addButton.disabled) {
+      this.shouldAddBonusProduct = this.selectedOptionsIncludeBonusTrigger();
       this.setAddButtonLoading(addButton, true);
       return;
     }
@@ -102,14 +108,17 @@ class ShoppableImageGrid extends Component {
 
   /** @param {import('@shopify/events').CartLinesUpdateEvent} event */
   handleCartUpdate = (event) => {
+    if (event.detail?.source === 'shoppable-image-grid') return;
     if (!this.refs.content.contains(/** @type {Node | null} */ (event.target))) return;
 
     event.promise
-      ?.then(({ detail }) => {
+      ?.then(async ({ detail }) => {
         if (detail?.didError) {
           this.resetAddButtonLoading();
           return;
         }
+
+        if (this.shouldAddBonusProduct) await this.addBonusProduct();
 
         this.closeDialog();
         // Open after the product modal closes so drawer focus management stays correct.
@@ -156,6 +165,81 @@ class ShoppableImageGrid extends Component {
     } else {
       window.location.href = window.Theme?.routes?.cart_url || '/cart';
     }
+  }
+
+  selectedOptionsIncludeBonusTrigger() {
+    const product = this.refs.content.querySelector(selectors.product);
+    if (!(product instanceof HTMLElement)) return false;
+
+    // Hiring-test rule: any Black + Medium selection also adds Soft Winter Jacket.
+    const selectedOptions = this.getSelectedOptions(product).map((option) => option?.toLowerCase());
+    return selectedOptions.includes(bonusColorValue) && selectedOptions.some((option) => bonusSizeValues.includes(option));
+  }
+
+  async addBonusProduct() {
+    const bonusVariantId = this.dataset.bonusVariantId;
+    if (!bonusVariantId) return;
+
+    const formData = new FormData();
+    formData.set('id', bonusVariantId);
+    formData.set('quantity', '1');
+
+    const cartItemsComponents = document.querySelectorAll('cart-items-component');
+    const sectionIds = [];
+    cartItemsComponents.forEach((item) => {
+      if (item instanceof HTMLElement && item.dataset.sectionId) sectionIds.push(item.dataset.sectionId);
+    });
+    if (sectionIds.length > 0) formData.set('sections', sectionIds.join(','));
+
+    const deferredEventPromise = CartLinesUpdateEvent.createPromise();
+
+    this.dispatchEvent(
+      new CartLinesUpdateEvent({
+        action: 'add',
+        context: 'product',
+        lines: [{ merchandiseId: bonusVariantId, quantity: 1 }],
+        promise: deferredEventPromise.promise,
+      })
+    );
+
+    const response = await fetch(window.Theme?.routes?.cart_add_url || '/cart/add.js', {
+      method: 'POST',
+      headers: {
+        Accept: 'text/html',
+      },
+      credentials: 'same-origin',
+      body: formData,
+    });
+
+    const data = await response.json();
+
+    if (!response.ok || data.status) {
+      deferredEventPromise.reject(data);
+      console.warn('[shoppable-image-grid] Bonus product add failed:', data.status || response.status);
+      return;
+    }
+
+    const cart = await this.fetchCart();
+    deferredEventPromise.resolve({
+      cart: CartLinesUpdateEvent.createCartFromAjaxResponse(cart),
+      detail: {
+        items: cart.items,
+        sections: data.sections,
+        source: 'shoppable-image-grid',
+        sourceId: this.id,
+        didError: false,
+      },
+    });
+  }
+
+  async fetchCart() {
+    const response = await fetch(`${window.Theme?.routes?.cart_url || '/cart'}.json`, {
+      headers: { Accept: 'application/json' },
+      credentials: 'same-origin',
+    });
+
+    if (!response.ok) throw new Error(`Failed to fetch cart: ${response.status}`);
+    return response.json();
   }
 
   /** @param {HTMLButtonElement} button @param {boolean} isLoading */
