@@ -36,6 +36,14 @@
     {% endif %}
 
     {%- render 'meta-tags' -%}
+    {% # theme-check-disable RemoteAsset %}
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link
+      href="https://fonts.googleapis.com/css2?family=Jost:wght@300;400;500;600&family=Lustria&display=swap"
+      rel="stylesheet"
+    >
+    {% # theme-check-enable RemoteAsset %}
     {%- render 'stylesheets' -%}
     {%- render 'fonts' -%}
     {%- render 'scripts' -%}

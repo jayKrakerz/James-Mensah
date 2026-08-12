@@ -1750,10 +1750,8 @@ input[type='radio'] {
   cursor: not-allowed;
 }
 
-/* Flexbox for labels wrapping radio buttons or checkboxes */
 label:has(input[type='radio']),
 label:has(input[type='checkbox']) {
-  display: inline-flex;
   align-items: center;
   gap: var(--padding-2xs);
   cursor: pointer;
