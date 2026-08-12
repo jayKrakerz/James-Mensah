@@ -1,0 +1,887 @@
+<script
+  src="{{ 'shoppable-image-grid.js' | asset_url }}"
+  type="module"
+  fetchpriority="low"
+></script>
+
+{% render 'add-to-cart-button-styles' %}
+
+<div class="section-background color-{{ section.settings.color_scheme }}"></div>
+<shoppable-image-grid
+  class="
+    shoppable-grid
+    section
+    color-{{ section.settings.color_scheme }}
+    spacing-style
+  "
+  style="
+    {% render 'spacing-style', settings: section.settings %}
+    --padding-block-start: 56px;
+    --shoppable-grid-gap: {{ section.settings.gap }}px;
+    --shoppable-grid-heading-size: {{ section.settings.heading_size }}px;
+  "
+>
+  {% if section.settings.heading != blank %}
+    <h2 class="shoppable-grid__heading">{{ section.settings.heading | escape }}</h2>
+  {% endif %}
+
+  <div class="shoppable-grid__items">
+    {% paginate collections.all.products by 50 %}
+      {% for card_product in collections.all.products %}
+        {% liquid
+          assign card_image = card_product.featured_image
+          assign image_loading = 'lazy'
+          assign placeholder_index = forloop.index0 | modulo: 3 | plus: 1
+          assign placeholder_name = 'product-apparel-' | append: placeholder_index
+          assign product_form_id = 'ShoppableGridForm-' | append: section.id | append: '-' | append: card_product.id
+          assign add_to_cart_text = 'actions.add_to_cart' | t
+          if forloop.index <= 3
+            assign image_loading = 'eager'
+          endif
+        %}
+
+        <article class="shoppable-grid__item">
+          {% if card_image != blank %}
+            {{
+              card_image
+              | image_url: width: 900
+              | image_tag:
+                class: 'shoppable-grid__image',
+                widths: '360, 540, 720, 900',
+                sizes: '(min-width: 1372px) 433px, (min-width: 750px) 50vw, 100vw',
+                loading: image_loading,
+                alt: card_image.alt
+            }}
+          {% else %}
+            {{ placeholder_name | placeholder_svg_tag: 'shoppable-grid__image shoppable-grid__placeholder' }}
+          {% endif %}
+
+          <button
+            type="button"
+            class="shoppable-grid__hotspot"
+            data-shoppable-trigger
+            aria-label="View {{ card_product.title | escape }}"
+            aria-haspopup="dialog"
+            aria-controls="ShoppableGridDialog-{{ section.id }}"
+          >
+            {%- comment -%} Unique filter IDs prevent SVG defs from colliding across repeated product cards. {%- endcomment -%}
+            <svg aria-hidden="true" width="22" height="22" viewBox="0 0 22 22" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <g filter="url(#filter0_d_5_3060_{{ section.id }}_{{ forloop.index }}_{{ card_product.id }})">
+                <circle cx="11" cy="8" r="11" fill="#F8F8F8" fill-opacity="0.9"></circle>
+                <path d="M11 4V12" stroke="black" stroke-linecap="square" stroke-linejoin="round"></path>
+                <path d="M7 8H15" stroke="black" stroke-linecap="square" stroke-linejoin="round"></path>
+              </g>
+              <defs>
+                <filter id="filter0_d_5_3060_{{ section.id }}_{{ forloop.index }}_{{ card_product.id }}" x="-4" y="-4" width="30" height="30" filterUnits="userSpaceOnUse" color-interpolation-filters="sRGB">
+                  <feFlood flood-opacity="0" result="BackgroundImageFix"></feFlood>
+                  <feColorMatrix in="SourceAlpha" type="matrix" values="0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 127 0" result="hardAlpha"></feColorMatrix>
+                  <feOffset dy="3"></feOffset>
+                  <feGaussianBlur stdDeviation="2"></feGaussianBlur>
+                  <feComposite in2="hardAlpha" operator="out"></feComposite>
+                  <feColorMatrix type="matrix" values="0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0.2 0"></feColorMatrix>
+                  <feBlend mode="normal" in2="BackgroundImageFix" result="effect1_dropShadow_5_3060"></feBlend>
+                  <feBlend mode="normal" in="SourceGraphic" in2="effect1_dropShadow_5_3060" result="shape"></feBlend>
+                </filter>
+              </defs>
+            </svg>
+          </button>
+
+          {%- comment -%} Product details stay in a template until the hotspot opens the shared modal. {%- endcomment -%}
+          <template data-shoppable-template>
+            <div class="shoppable-grid__product" data-shoppable-product>
+              <div class="shoppable-grid__summary">
+                <div class="shoppable-grid__modal-media">
+                  {% assign modal_image = card_image %}
+                  {% if modal_image != blank %}
+                    <img
+                      class="shoppable-grid__modal-image"
+                      src="{{ modal_image | image_url: width: 500 }}"
+                      srcset="
+                        {{ modal_image | image_url: width: 180 }} 180w,
+                        {{ modal_image | image_url: width: 300 }} 300w,
+                        {{ modal_image | image_url: width: 500 }} 500w
+                      "
+                      sizes="120px"
+                      alt="{{ modal_image.alt | escape }}"
+                      width="{{ modal_image.width }}"
+                      height="{{ modal_image.height }}"
+                      loading="lazy"
+                      data-shoppable-image
+                    >
+                  {% endif %}
+                </div>
+                <div class="shoppable-grid__details">
+                  <h3 class="shoppable-grid__product-title">
+                    <a href="{{ card_product.url }}">{{ card_product.title | escape }}</a>
+                  </h3>
+                  <p class="shoppable-grid__price" data-shoppable-price>
+                    {{ card_product.selected_or_first_available_variant.price | money }}
+                  </p>
+                  {% if card_product.description != blank %}
+                    <div class="shoppable-grid__description">
+                      {{ card_product.description | strip_html | truncatewords: 28 }}
+                    </div>
+                  {% endif %}
+                </div>
+              </div>
+
+              <product-form-component
+                data-section-id="{{ section.id }}"
+                data-product-id="{{ card_product.id }}"
+                on:submit="/handleSubmit"
+              >
+                <div class="visually-hidden" aria-live="assertive" role="status" aria-atomic="true" ref="liveRegion"></div>
+                {% form 'product', card_product, id: product_form_id, novalidate: 'novalidate', data-type: 'add-to-cart-form' %}
+                  <input
+                    type="hidden"
+                    name="id"
+                    ref="variantId"
+                    value="{{ card_product.selected_or_first_available_variant.id }}"
+                    data-shoppable-variant-id
+                  >
+                  <input type="hidden" name="quantity" value="1">
+
+                  {% unless card_product.has_only_default_variant %}
+                    <div class="shoppable-grid__options">
+                      {%- comment -%} Color options render first as swatches; other options render as custom dropdowns below. {%- endcomment -%}
+                      {% for option in card_product.options_with_values %}
+                        {% assign option_name_downcase = option.name | downcase %}
+                        {% if option_name_downcase == 'color' or option_name_downcase == 'colour' %}
+                          <fieldset
+                            class="shoppable-grid__option shoppable-grid__option--color"
+                            data-shoppable-option-group
+                            data-shoppable-option-index="{{ option.position | minus: 1 }}"
+                          >
+                            <legend>{{ option.name | escape }}</legend>
+                            <div
+                              class="shoppable-grid__color-values"
+                              style="--color-option-count: {{ option.values.size }};"
+                            >
+                              {% for value in option.values %}
+                                {% liquid
+                                  assign swatch_color = value.swatch.color
+                                  if swatch_color == blank
+                                    assign value_name = value | downcase | strip
+                                    case value_name
+                                      when 'black'
+                                        assign swatch_color = '#000000'
+                                      when 'white'
+                                        assign swatch_color = '#ffffff'
+                                      when 'blue'
+                                        assign swatch_color = '#1f5fbf'
+                                      when 'red'
+                                        assign swatch_color = '#c9252d'
+                                      when 'green'
+                                        assign swatch_color = '#2f8a3f'
+                                      when 'yellow'
+                                        assign swatch_color = '#f4c430'
+                                      when 'orange'
+                                        assign swatch_color = '#f97316'
+                                      when 'pink'
+                                        assign swatch_color = '#ec4899'
+                                      when 'purple'
+                                        assign swatch_color = '#7c3aed'
+                                      when 'brown'
+                                        assign swatch_color = '#7a4a28'
+                                      when 'grey', 'gray'
+                                        assign swatch_color = '#808080'
+                                      when 'navy'
+                                        assign swatch_color = '#0f172a'
+                                      when 'cream'
+                                        assign swatch_color = '#f5f0dc'
+                                      when 'beige'
+                                        assign swatch_color = '#d6c6a8'
+                                    endcase
+                                  endif
+                                %}
+                                <label
+                                  class="shoppable-grid__color-value"
+                                  {% if swatch_color != blank %}
+                                    style="--swatch-color: {{ swatch_color }};"
+                                  {% endif %}
+                                >
+                                  <input
+                                    type="radio"
+                                    name="ShoppableGridOption-{{ section.id }}-{{ card_product.id }}-{{ option.position }}"
+                                    value="{{ value | escape }}"
+                                    data-shoppable-option="{{ option.position | minus: 1 }}"
+                                    {% if option.selected_value == value %}checked{% endif %}
+                                  >
+                                  <span>{{ value }}</span>
+                                </label>
+                              {% endfor %}
+                            </div>
+                          </fieldset>
+                        {% endif %}
+                      {% endfor %}
+
+                      {%- comment -%} Non-color options use radios so variant state stays compatible with Shopify forms. {%- endcomment -%}
+                      {% for option in card_product.options_with_values %}
+                        {% assign option_name_downcase = option.name | downcase %}
+                        {% unless option_name_downcase == 'color' or option_name_downcase == 'colour' %}
+                          <fieldset
+                            class="shoppable-grid__option shoppable-grid__option--dropdown"
+                            data-shoppable-option-group
+                            data-shoppable-option-index="{{ option.position | minus: 1 }}"
+                          >
+                            <legend>{{ option.name | escape }}</legend>
+                            <details class="shoppable-grid__dropdown" data-shoppable-dropdown>
+                              <summary>
+                                <span data-shoppable-selected-text>Choose your {{ option.name | downcase }}</span>
+                                <span class="shoppable-grid__dropdown-icon" aria-hidden="true"></span>
+                              </summary>
+                              <div class="shoppable-grid__dropdown-list">
+                                {% for value in option.values %}
+                                  <label class="shoppable-grid__dropdown-option">
+                                    <input
+                                      type="radio"
+                                      name="ShoppableGridOption-{{ section.id }}-{{ card_product.id }}-{{ option.position }}"
+                                      data-shoppable-option="{{ option.position | minus: 1 }}"
+                                     value="{{ value | escape }}"
+                                      {% if option.selected_value == value %}checked{% endif %}
+                                    >
+                                    <span>{{ value }}</span>
+                                  </label>
+                                {% endfor %}
+                              </div>
+                            </details>
+                          </fieldset>
+                        {% endunless %}
+                      {% endfor %}
+                    </div>
+                  {% endunless %}
+
+                  <div class="product-form-text__error hidden" ref="addToCartTextError" role="alert">
+                    <span class="svg-wrapper">{{ 'icon-error.svg' | inline_asset_content }}</span>
+                  </div>
+
+                  {% render 'add-to-cart-button',
+                    add_to_cart_text: add_to_cart_text,
+                    class: 'shoppable-grid__add-button',
+                    can_add_to_cart: card_product.selected_or_first_available_variant.available,
+                    product: card_product
+                  %}
+                {% endform %}
+              </product-form-component>
+
+              {%- comment -%} JS reads this payload to update selected variant, price, image, and add-to-cart state. {%- endcomment -%}
+              <script type="application/json" data-shoppable-variants>
+                [
+                  {% for variant in card_product.variants %}
+                    {
+                      "id": {{ variant.id | json }},
+                      "available": {{ variant.available | json }},
+                      "options": {{ variant.options | json }},
+                      "price": {{ variant.price | money | json }},
+                      "image": {% if variant.featured_image %}{{ variant.featured_image | image_url: width: 500 | json }}{% else %}null{% endif %}
+                    }{% unless forloop.last %},{% endunless %}
+                  {% endfor %}
+                ]
+              </script>
+            </div>
+          </template>
+        </article>
+      {% endfor %}
+    {% endpaginate %}
+  </div>
+
+  <dialog
+    id="ShoppableGridDialog-{{ section.id }}"
+    class="shoppable-grid__dialog"
+    ref="dialog"
+  >
+    <button
+      type="button"
+      class="shoppable-grid__close"
+      data-shoppable-close
+      ref="closeButton"
+      aria-label="{{ 'accessibility.close_dialog' | t }}"
+    >
+      {{ 'icon-close.svg' | inline_asset_content }}
+    </button>
+    <div data-shoppable-content ref="content"></div>
+  </dialog>
+</shoppable-image-grid>
+
+{% stylesheet %}
+  .shoppable-grid {
+    display: block;
+    width: min(calc(100% - 32px), 1340px);
+    margin-inline: auto;
+  }
+
+  .shoppable-grid__heading {
+    margin: 0 0 clamp(24px, 3vw, 42px);
+    font-family: Lustria, var(--font-heading--family);
+    font-size: 36px;
+    font-weight: 400;
+    letter-spacing: 0;
+    line-height: 1.2;
+    vertical-align: middle;
+  }
+
+  .shoppable-grid__items {
+    display: grid;
+    grid-template-columns: repeat(3, 433px);
+    gap: var(--shoppable-grid-gap);
+    justify-content: center;
+  }
+
+  .shoppable-grid__item {
+    position: relative;
+    width: 433px;
+    height: 444px;
+    min-width: 0;
+    overflow: hidden;
+    background: rgb(var(--color-foreground-rgb) / 0.05);
+  }
+
+  .shoppable-grid__image {
+    display: block;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+
+  .shoppable-grid__placeholder {
+    background: rgb(var(--color-foreground-rgb) / 0.05);
+  }
+
+  .shoppable-grid__hotspot {
+    position: absolute;
+    top: 56%;
+    left: 62%;
+    display: grid;
+    width: 22px;
+    height: 22px;
+    padding: 0;
+    place-items: center;
+    color: #111;
+    background: transparent;
+    border: 0;
+    cursor: pointer;
+    transform: translate(-50%, -50%);
+    transition: transform 160ms ease;
+  }
+
+  .shoppable-grid__hotspot:hover,
+  .shoppable-grid__hotspot:focus-visible {
+    transform: translate(-50%, -50%) scale(1.12);
+  }
+
+  .shoppable-grid__hotspot svg {
+    display: block;
+    width: 100%;
+    height: 100%;
+    overflow: visible;
+  }
+
+  .shoppable-grid__item:nth-child(6n + 2) .shoppable-grid__hotspot {
+    top: 52%;
+    left: 84%;
+  }
+
+  .shoppable-grid__item:nth-child(6n + 3) .shoppable-grid__hotspot {
+    top: 21%;
+    left: 64%;
+  }
+
+  .shoppable-grid__item:nth-child(6n + 4) .shoppable-grid__hotspot {
+    top: 34%;
+    left: 72%;
+  }
+
+  .shoppable-grid__item:nth-child(6n + 5) .shoppable-grid__hotspot {
+    top: 26%;
+    left: 52%;
+  }
+
+  .shoppable-grid__item:nth-child(6n + 6) .shoppable-grid__hotspot {
+    top: 39%;
+    left: 76%;
+  }
+
+  .shoppable-grid__dialog {
+    box-sizing: border-box;
+    width: min(311px, calc(100vw - 24px));
+    height: min(447px, calc(100dvh - 24px));
+    max-width: none;
+    max-height: none;
+    padding: 40px 20px 28px;
+    overflow-y: auto;
+    color: rgb(var(--color-foreground-rgb));
+    background: rgb(var(--color-background-rgb));
+    border: 0;
+    border-radius: 0;
+    box-shadow: 0 14px 50px rgb(0 0 0 / 0.22);
+  }
+
+  .shoppable-grid__dialog::backdrop {
+    background: rgb(0 0 0 / 0.42);
+  }
+
+  .shoppable-grid__close {
+    position: absolute;
+    top: 14px;
+    right: 14px;
+    width: 28px;
+    height: 28px;
+    padding: 6px;
+    color: currentcolor;
+    background: transparent;
+    border: 0;
+    cursor: pointer;
+  }
+
+  .shoppable-grid__close svg {
+    width: 100%;
+    height: 100%;
+  }
+
+  .shoppable-grid__summary {
+    display: grid;
+    grid-template-columns: 120px 1fr;
+    gap: 10px;
+    margin-bottom: 18px;
+  }
+
+  .shoppable-grid__modal-media {
+    width: 120px;
+    height: 140px;
+    background: rgb(var(--color-foreground-rgb) / 0.05);
+  }
+
+  .shoppable-grid__modal-image {
+    display: block;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+
+  .shoppable-grid__product-title {
+    margin: 12px 0 8px;
+    font-family: var(--font-body--family);
+    font-size: 18px;
+    font-weight: 400;
+    line-height: 1.25;
+  }
+
+  .shoppable-grid__product-title a {
+    color: inherit;
+    font-family: Jost, var(--font-body--family);
+    font-size: 16px;
+    font-style: normal;
+    font-weight: 300;
+    letter-spacing: 0;
+    line-height: 1.2;
+    text-decoration: none;
+    vertical-align: middle;
+  }
+
+  .shoppable-grid__price {
+    margin: 0 0 10px;
+    font-family: Lustria, serif;
+    font-size: 16px;
+    font-style: normal;
+    font-weight: 400;
+    letter-spacing: 0;
+    line-height: 1.2;
+    vertical-align: middle;
+  }
+
+  .shoppable-grid__description {
+    display: -webkit-box;
+    overflow: hidden;
+    font-family: Jost, var(--font-body--family);
+    font-style: normal;
+    font-weight: 300;
+    font-size: 14px;
+    line-height: 1.1;
+    letter-spacing: -0.01em;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 4;
+  }
+
+  .shoppable-grid__options {
+    display: grid;
+    gap: 14px;
+    margin-bottom: 24px;
+  }
+
+  .shoppable-grid__option {
+    display: grid;
+    gap: 6px;
+    font-size: 14px;
+  }
+
+  .shoppable-grid__option--color {
+    min-width: 0;
+    padding: 0;
+    border: 0;
+  }
+
+  .shoppable-grid__option--color legend,
+  .shoppable-grid__option--dropdown legend {
+    margin-bottom: 6px;
+    padding: 0;
+  }
+
+  .shoppable-grid__option--dropdown {
+    min-width: 0;
+    padding: 0;
+    border: 0;
+  }
+
+  .shoppable-grid__color-values {
+    position: relative;
+    display: flex;
+    overflow: hidden;
+  }
+
+  .shoppable-grid__color-values::before {
+    position: absolute;
+    inset: 0 auto 0 0;
+    width: calc(100% / var(--color-option-count, 2));
+    background: #000;
+    content: '';
+    transform: translateX(0);
+    transition: transform 220ms ease;
+  }
+
+  .shoppable-grid__color-values:has(.shoppable-grid__color-value:nth-child(2) input:checked)::before {
+    transform: translateX(100%);
+  }
+
+  .shoppable-grid__color-values:has(.shoppable-grid__color-value:nth-child(3) input:checked)::before {
+    transform: translateX(200%);
+  }
+
+  .shoppable-grid__color-values:has(.shoppable-grid__color-value:nth-child(4) input:checked)::before {
+    transform: translateX(300%);
+  }
+
+  .shoppable-grid__color-values:has(.shoppable-grid__color-value:nth-child(5) input:checked)::before {
+    transform: translateX(400%);
+  }
+
+  .shoppable-grid__color-values:has(.shoppable-grid__color-value:nth-child(6) input:checked)::before {
+    transform: translateX(500%);
+  }
+
+  .shoppable-grid__color-value {
+    position: relative;
+    z-index: 1;
+    flex: 1 1 0;
+    min-width: 0;
+    cursor: pointer;
+  }
+
+  .shoppable-grid__color-value input {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    opacity: 0;
+    pointer-events: none;
+  }
+
+  .shoppable-grid__color-value span {
+    position: relative;
+    display: flex;
+    min-height: 40px;
+    padding: 0 14px 0 20px;
+    align-items: center;
+    background: transparent;
+    border: 1px solid rgb(var(--color-foreground-rgb) / 0.55);
+    font-family: Jost, var(--font-body--family);
+    font-size: 18px;
+    font-style: normal;
+    font-weight: 400;
+    letter-spacing: -0.02em;
+    line-height: 1;
+  }
+
+  .shoppable-grid__color-value + .shoppable-grid__color-value span {
+    margin-left: -1px;
+  }
+
+  .shoppable-grid__color-value span::before {
+    position: absolute;
+    inset: -1px auto -1px -1px;
+    width: 4.84px;
+    background: var(--swatch-color, rgb(var(--color-foreground-rgb) / 0.16));
+    border: 0 solid #000;
+    border-width: 1px;
+    content: '';
+  }
+
+  .shoppable-grid__color-value input:checked + span {
+    color: #fff;
+    border-color: #000;
+    box-shadow: inset 0 0 0 1px #000;
+  }
+
+  .shoppable-grid__color-value input:checked + span::before {
+    background: var(--swatch-color, rgb(255 255 255 / 0.28));
+  }
+
+  .shoppable-grid__color-value input:focus-visible + span {
+    z-index: 2;
+    outline: 2px solid currentcolor;
+    outline-offset: 2px;
+  }
+
+  .shoppable-grid__dropdown {
+    border: 1px solid currentcolor;
+  }
+
+  .shoppable-grid__dropdown summary {
+    position: relative;
+    display: grid;
+    grid-template-columns: 1fr 64px;
+    min-height: 40px;
+    align-items: center;
+    cursor: pointer;
+    list-style: none;
+    padding: 0;
+  }
+
+  .shoppable-grid__dropdown summary::-webkit-details-marker {
+    display: none;
+  }
+
+  .shoppable-grid__dropdown summary::after {
+    position: absolute;
+    inset: 0 64px 0 auto;
+    width: 1px;
+    background: currentcolor;
+    content: '';
+  }
+
+  .shoppable-grid__dropdown summary > span:first-child {
+    padding-inline: 20px;
+    font: inherit;
+  }
+
+  .shoppable-grid__dropdown-icon {
+    position: relative;
+    align-self: stretch;
+  }
+
+  .shoppable-grid__dropdown-icon::before {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 12px;
+    height: 12px;
+    border-right: 2px solid currentcolor;
+    border-bottom: 2px solid currentcolor;
+    content: '';
+    transform: translate(-50%, -70%) rotate(45deg);
+    transition: transform 160ms ease;
+  }
+
+  .shoppable-grid__dropdown[open] .shoppable-grid__dropdown-icon::before {
+    transform: translate(-50%, -30%) rotate(225deg);
+  }
+
+  .shoppable-grid__dropdown-list {
+    border-top: 1px solid currentcolor;
+  }
+
+  .shoppable-grid__dropdown-option {
+    display: block;
+    cursor: pointer;
+  }
+
+  .shoppable-grid__dropdown-option input {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    opacity: 0;
+    pointer-events: none;
+  }
+
+  .shoppable-grid__dropdown-option span {
+    display: block;
+    min-height: 48px;
+    padding: 12px 20px;
+    text-align: center;
+  }
+
+  .shoppable-grid__dropdown[data-shoppable-has-selection] .shoppable-grid__dropdown-option input:checked + span {
+    color: #fff;
+    background: #000;
+  }
+
+  .shoppable-grid__dropdown-option:hover span {
+    color: #fff;
+    background: #000;
+  }
+
+  .shoppable-grid__dropdown-option input:focus-visible + span {
+    outline: 2px solid currentcolor;
+    outline-offset: -2px;
+  }
+
+  .shoppable-grid__dialog .product-form-text__error:not(.hidden) {
+    display: flex;
+    gap: 6px;
+    margin-bottom: 10px;
+    color: var(--color-error, #b42318);
+    font-size: 13px;
+  }
+
+  .shoppable-grid__dialog .shoppable-grid__add-button {
+    position: relative;
+    width: 100%;
+    height: 45px;
+    color: #fff;
+    background: #000;
+    border: 1px solid #000;
+    border-radius: 0;
+    font-family: Jost, var(--font-body--family);
+    font-size: 16px;
+    letter-spacing: 0;
+    line-height: 20.5px;
+    text-transform: uppercase;
+  }
+
+  .shoppable-grid__dialog .shoppable-grid__add-button .add-to-cart-icon {
+    display: none;
+  }
+
+  .shoppable-grid__dialog .shoppable-grid__add-button::after {
+    position: absolute;
+    top: 50%;
+    right: 24px;
+    width: 26px;
+    height: 12px;
+    background-image: url("data:image/svg+xml,%3Csvg width='26' height='12' viewBox='0 0 26 12' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M0.75 4.77298L6.72657e-08 4.77298L-6.72657e-08 6.27298L0.75 6.27298L0.75 5.52298L0.75 4.77298ZM25.2803 6.05331C25.5732 5.76042 25.5732 5.28554 25.2803 4.99265L20.5074 0.219681C20.2145 -0.0732129 19.7396 -0.0732129 19.4467 0.21968C19.1538 0.512574 19.1538 0.987447 19.4467 1.28034L23.6893 5.52298L19.4467 9.76562C19.1538 10.0585 19.1538 10.5334 19.4467 10.8263C19.7396 11.1192 20.2145 11.1192 20.5074 10.8263L25.2803 6.05331ZM0.75 5.52298L0.75 6.27298L24.75 6.27298L24.75 5.52298L24.75 4.77298L0.75 4.77298L0.75 5.52298Z' fill='%23F5F5F5'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-size: contain;
+    content: '';
+    transform: translateY(-50%);
+  }
+
+  @media screen and (max-width: 1371px) {
+    .shoppable-grid__items {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .shoppable-grid__item {
+      width: 100%;
+      height: auto;
+      aspect-ratio: 433 / 444;
+    }
+  }
+
+  @media screen and (max-width: 749px) {
+    .shoppable-grid__heading {
+      font-size: 24px;
+      text-align: center;
+    }
+
+    .shoppable-grid__hotspot {
+      top: 50%;
+      left: 50%;
+      width: 15.7px;
+      height: 15.7px;
+    }
+
+    .shoppable-grid__item:nth-child(n) .shoppable-grid__hotspot {
+      top: 50%;
+      left: 50%;
+    }
+
+  }
+
+  @media screen and (max-width: 599px) {
+
+    .shoppable-grid__dialog {
+      padding: 40px 20px 20px;
+    }
+
+    .shoppable-grid__summary {
+      grid-template-columns: 120px 1fr;
+      gap: 12px;
+    }
+
+    .shoppable-grid__product-title {
+      margin-top: 4px;
+      font-size: 16px;
+    }
+  }
+{% endstylesheet %}
+
+{% schema %}
+{
+  "name": "Shoppable image grid",
+  "disabled_on": {
+    "groups": ["header", "footer"]
+  },
+  "settings": [
+    {
+      "type": "text",
+      "id": "heading",
+      "label": "Heading",
+      "default": "Tisso vision in the wild"
+    },
+    {
+      "type": "range",
+      "id": "heading_size",
+      "label": "Heading size",
+      "min": 28,
+      "max": 56,
+      "step": 1,
+      "unit": "px",
+      "default": 42
+    },
+    {
+      "type": "range",
+      "id": "gap",
+      "label": "Grid gap",
+      "min": 0,
+      "max": 20,
+      "step": 1,
+      "unit": "px",
+      "default": 20
+    },
+    {
+      "type": "color_scheme",
+      "id": "color_scheme",
+      "label": "Color scheme",
+      "default": "scheme-1"
+    },
+    {
+      "type": "header",
+      "content": "Padding"
+    },
+    {
+      "type": "range",
+      "id": "padding-block-start",
+      "label": "Top",
+      "min": 0,
+      "max": 100,
+      "step": 1,
+      "unit": "px",
+      "default": 48
+    },
+    {
+      "type": "range",
+      "id": "padding-block-end",
+      "label": "Bottom",
+      "min": 0,
+      "max": 100,
+      "step": 1,
+      "unit": "px",
+      "default": 48
+    }
+  ],
+  "presets": [
+    {
+      "name": "Shoppable image grid",
+      "category": "Products"
+    }
+  ]
+}
+{% endschema %}
