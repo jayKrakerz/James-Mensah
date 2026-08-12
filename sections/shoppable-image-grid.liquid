@@ -748,6 +748,13 @@
     letter-spacing: 0;
     line-height: 20.5px;
     text-transform: uppercase;
+    transition: opacity 160ms ease, transform 160ms ease;
+  }
+
+  .shoppable-grid__dialog .shoppable-grid__add-button:active,
+  .shoppable-grid__dialog .shoppable-grid__add-button--loading {
+    opacity: 0.82;
+    transform: scale(0.985);
   }
 
   .shoppable-grid__dialog .shoppable-grid__add-button .add-to-cart-icon {
@@ -765,6 +772,11 @@
     background-size: contain;
     content: '';
     transform: translateY(-50%);
+    transition: transform 180ms ease;
+  }
+
+  .shoppable-grid__dialog .shoppable-grid__add-button--loading::after {
+    transform: translate(6px, -50%);
   }
 
   @media screen and (max-width: 1371px) {

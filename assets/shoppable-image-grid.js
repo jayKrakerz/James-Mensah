@@ -43,7 +43,7 @@ class ShoppableImageGrid extends Component {
 
     this.addEventListener('click', this.handleClick);
     this.addEventListener('change', this.handleChange);
-    this.addEventListener(StandardEvents.cartLinesUpdate, this.handleCartUpdate);
+    document.addEventListener(StandardEvents.cartLinesUpdate, this.handleCartUpdate);
     this.refs.dialog.addEventListener('close', this.handleDialogClose);
   }
 
@@ -52,7 +52,7 @@ class ShoppableImageGrid extends Component {
 
     this.removeEventListener('click', this.handleClick);
     this.removeEventListener('change', this.handleChange);
-    this.removeEventListener(StandardEvents.cartLinesUpdate, this.handleCartUpdate);
+    document.removeEventListener(StandardEvents.cartLinesUpdate, this.handleCartUpdate);
     this.refs.dialog.removeEventListener('close', this.handleDialogClose);
   }
 
@@ -63,6 +63,12 @@ class ShoppableImageGrid extends Component {
     const trigger = event.target.closest(selectors.trigger);
     if (trigger instanceof HTMLElement) {
       this.openProduct(trigger);
+      return;
+    }
+
+    const addButton = event.target.closest('.shoppable-grid__add-button');
+    if (addButton instanceof HTMLButtonElement && !addButton.disabled) {
+      this.setAddButtonLoading(addButton, true);
       return;
     }
 
@@ -96,13 +102,21 @@ class ShoppableImageGrid extends Component {
 
   /** @param {import('@shopify/events').CartLinesUpdateEvent} event */
   handleCartUpdate = (event) => {
-    if (!(event.target instanceof Element) || !event.target.closest(selectors.content)) return;
+    if (!this.refs.content.contains(/** @type {Node | null} */ (event.target))) return;
 
     event.promise
       ?.then(({ detail }) => {
-        if (!detail?.didError) this.closeDialog();
+        if (detail?.didError) {
+          this.resetAddButtonLoading();
+          return;
+        }
+
+        this.closeDialog();
+        // Open after the product modal closes so drawer focus management stays correct.
+        requestAnimationFrame(() => this.openCartDrawer());
       })
       .catch((error) => {
+        this.resetAddButtonLoading();
         if (error?.name !== 'AbortError') console.warn('[shoppable-image-grid] Cart update rejected:', error);
       });
   };
@@ -131,6 +145,28 @@ class ShoppableImageGrid extends Component {
 
   closeDialog() {
     if (this.refs.dialog.open) this.refs.dialog.close();
+  }
+
+  openCartDrawer() {
+    /** @type {HTMLElement & { open?: () => void } | null} */
+    const drawer = document.querySelector('theme-drawer#cart-drawer');
+
+    if (drawer?.open) {
+      drawer.open();
+    } else {
+      window.location.href = window.Theme?.routes?.cart_url || '/cart';
+    }
+  }
+
+  /** @param {HTMLButtonElement} button @param {boolean} isLoading */
+  setAddButtonLoading(button, isLoading) {
+    button.toggleAttribute('aria-busy', isLoading);
+    button.classList.toggle('shoppable-grid__add-button--loading', isLoading);
+  }
+
+  resetAddButtonLoading() {
+    const button = this.refs.content.querySelector('.shoppable-grid__add-button--loading');
+    if (button instanceof HTMLButtonElement) this.setAddButtonLoading(button, false);
   }
 
   cacheDefaultImage() {
