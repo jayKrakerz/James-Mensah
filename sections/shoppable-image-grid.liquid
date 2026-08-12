@@ -26,21 +26,25 @@
   {% endif %}
 
   <div class="shoppable-grid__items">
-    {% paginate collections.all.products by 50 %}
-      {% for card_product in collections.all.products %}
+    {% for block in section.blocks limit: 6 %}
+      {% liquid
+        assign card_product = block.settings.product
+        assign product_form_id = 'ShoppableGridForm-' | append: section.id | append: '-' | append: block.id
+      %}
+
+      {% if card_product != blank %}
         {% liquid
           assign card_image = card_product.featured_image
           assign image_loading = 'lazy'
           assign placeholder_index = forloop.index0 | modulo: 3 | plus: 1
           assign placeholder_name = 'product-apparel-' | append: placeholder_index
-          assign product_form_id = 'ShoppableGridForm-' | append: section.id | append: '-' | append: card_product.id
           assign add_to_cart_text = 'actions.add_to_cart' | t
           if forloop.index <= 3
             assign image_loading = 'eager'
           endif
         %}
 
-        <article class="shoppable-grid__item">
+        <article class="shoppable-grid__item" {{ block.shopify_attributes }}>
           {% if card_image != blank %}
             {{
               card_image
@@ -281,8 +285,8 @@
             </div>
           </template>
         </article>
-      {% endfor %}
-    {% endpaginate %}
+      {% endif %}
+    {% endfor %}
   </div>
 
   <dialog
@@ -877,10 +881,44 @@
       "default": 48
     }
   ],
+  "blocks": [
+    {
+      "type": "product",
+      "name": "Product",
+      "settings": [
+        {
+          "type": "product",
+          "id": "product",
+          "label": "Product"
+        }
+      ]
+    }
+  ],
+  "max_blocks": 6,
   "presets": [
     {
       "name": "Shoppable image grid",
-      "category": "Products"
+      "category": "Products",
+      "blocks": [
+        {
+          "type": "product"
+        },
+        {
+          "type": "product"
+        },
+        {
+          "type": "product"
+        },
+        {
+          "type": "product"
+        },
+        {
+          "type": "product"
+        },
+        {
+          "type": "product"
+        }
+      ]
     }
   ]
 }
